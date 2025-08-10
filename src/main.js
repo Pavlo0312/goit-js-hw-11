@@ -1,43 +1,59 @@
-import { getImage } from './js/pixabay-api';
-import errorIcon from './img/error.svg';
+// main.js
 import iziToast from 'izitoast';
 import 'izitoast/dist/css/iziToast.min.css';
 
-export const iziOption = {
-  messageColor: '#FAFAFB',
-  messageSize: '16px',
-  backgroundColor: '#EF4040',
-  iconUrl: errorIcon,
-  transitionIn: 'bounceInLeft',
-  position: 'topRight',
-  displayMode: 'replace',
-  closeOnClick: true,
-};
+import { getImagesByQuery } from './js/pixabay-api';
+import {
+  createGallery,
+  clearGallery,
+  showLoader,
+  hideLoader,
+} from './js/render-functions';
 
-document.querySelector('.form').addEventListener('submit', event => {
-  const input = document.querySelector('.user-input').value.trim();
-  const box = document.querySelector('.gallery');
-  event.preventDefault();
+const form = document.querySelector('.form');
 
-  if (!input) {
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+
+  const query = e.target.elements['search-text'].value.trim();
+  if (!query) {
     iziToast.show({
-      ...iziOption,
-      message: 'Please enter the search query',
+      message: 'Input field can not be empty. Please enter your query.',
+      messageColor: '#fff',
+      backgroundColor: '#ef4040',
+      position: 'topRight',
     });
     return;
   }
 
-  box.innerHTML =
-    '<p>Wait, the image is loaded</p><span class="loader"></span>';
+  clearGallery();
+  showLoader();
 
-  getImage(input)
-    .then(() => {
-      document.querySelector('.user-input').value = '';
-      document.querySelector('.user-input').focus();
-    })
-    .catch(error => {
-      console.error(error);
-      document.querySelector('.user-input').value = '';
-      document.querySelector('.user-input').focus();
+  try {
+    const data = await getImagesByQuery(query);
+
+    if (!data.hits || data.hits.length === 0) {
+      iziToast.show({
+        message:
+          'Sorry, there are no images matching your search query. Please try again!',
+        messageColor: '#fff',
+        backgroundColor: '#ef4040',
+        position: 'topRight',
+      });
+      return;
+    }
+
+    // додаємо в DOM за одну операцію усі елементи
+    createGallery(data.hits);
+  } catch (err) {
+    iziToast.show({
+      message: `Error: ${err?.message || err}`,
+      messageColor: '#fff',
+      backgroundColor: '#ef4040',
+      position: 'topRight',
     });
+  } finally {
+    hideLoader();
+    form.reset();
+  }
 });
